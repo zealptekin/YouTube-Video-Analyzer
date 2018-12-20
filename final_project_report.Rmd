@@ -1,0 +1,209 @@
+---
+title: "Trending YouTube Video Analysis"
+output:
+  pdf_document: default
+  word_document: default
+  html_document: default
+---
+*Zehra Alptekin,*
+*2018 Fall*
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Introduction
+
+YouTube is the biggest video-sharing website all over the world. Its history started with the video called "Me at the zoo" in 2005 and reached billions of videos today. It is very exciting to learn what is going on this jet-propelled world of video channels. 
+
+With this project, we analyze daily trending YouTube videos in the United States. Our data sample includes more than 40K records which belongs to 6.3K different videos became trending from December 2017 to May 2018. You can reach the dataset from https://www.kaggle.com/datasnaek/youtube-new 
+
+# Project Objectives
+
+We wonder something about video trends in USA, to get answers we need to analyze these questions:
+  
+  - Does a video become trending on the first day after it is published? And, approximately how long a video stays trending?
+  - Which category has the largest number of trending video? How about the number of trending videos in each category? 
+  - How about views per category?
+  - Is there any correlation between likes & views, likes & dislikes, comment_count & likes? 
+  
+Before analysing these questions let's get familiar with our dataset.
+  
+# Dataset Descriptive Analysis
+
+First of all, we read the dataset file which is in csv format and have a look its content. 
+
+```{r}
+df <- read.csv("USvideos.csv", header=TRUE)
+head(df)
+```
+
+How many features and records do we have?
+What are the names of variables?
+
+```{r}
+str(df)
+```
+
+We can use typeof() or class() commands to learn the data type of an object in R.
+
+```{r}
+class(df)
+class(df$video_id)
+class(df$trending_date)
+class(df$title)
+class(df$channel_title)
+class(df$category_id)
+class(df$publish_time)
+class(df$tags)
+class(df$views)
+class(df$likes)
+class(df$dislikes)
+class(df$comment_count)
+class(df$thumbnail_link)
+class(df$comments_disabled)
+class(df$ratings_disabled)
+class(df$video_error_or_removed)
+class(df$description)
+```
+
+After installing some packages with "install.packages()" command, we import them to use in the project:
+
+```{r}
+library(plyr)
+library(dplyr)
+library(magrittr)
+library(tidyr)
+library(ggplot2)
+library(lubridate)
+library(corrplot)
+library(ggcorrplot)
+```
+
+# Data Pre-processing
+
+We will perform category based analysis, so lets see how many different categories the dataset contains.
+
+```{r}
+length(unique(df))
+```
+
+While drawing graphs we want to see category names instead of "category_id". So add the "categories" to data frame by using the information in "US_category_id.json" file. 
+
+```{r}
+df = df %>% mutate(category = case_when(
+category_id== '1' ~ 'Film and Animation',
+category_id== '2' ~ 'Autos and Vehicles',
+category_id== '10'~ 'Music',
+category_id== '15'~ 'Pets and Animals',
+category_id== '17'~ 'Sports',
+category_id== '18'~ 'Short Movies',
+category_id== '19'~ 'Travel and Events',
+category_id== '20'~'Gaming',
+category_id== '21'~'Videoblogging',
+category_id== '22'~ 'People and Blogs',
+category_id== '23'~ 'Comedy',
+category_id== '24'~ 'Entertainment',
+category_id== '25'~ 'News and Politics',
+category_id== '26'~ 'How to and Style',
+category_id== '27'~ 'Education',
+category_id== '28'~ 'Science and Technology',
+category_id== '29'~ 'Nonprofits & Activism',
+category_id== '30'~ 'Movies',
+category_id== '31'~ 'Anime/Animation',
+category_id== '32'~ 'Action/Adventure',
+category_id== '33'~ 'Classics',
+category_id== '34'~ 'Comedy',
+category_id== '35'~ 'Documentary',
+category_id== '36'~ 'Drama',
+category_id== '37'~ 'Family',
+category_id== '38'~ 'Foreign',
+category_id== '39'~ 'Horror',
+category_id== '40'~ 'Sci-Fi/Fantasy',
+category_id== '41'~ 'Thriller',
+category_id== '42'~ 'Shorts',
+category_id== '43'~ 'Shows',
+category_id== '44'~ 'Trailers'))
+```
+
+To check the time period of videos in the dataset:
+
+```{r}
+k <- arrange(df, trending_date)
+head(select(k, trending_date), 1)
+tail(select(k, trending_date), 1)
+```
+
+Before answering the first question, we need to convert publish_time varibale to date format:
+
+```{r}
+df$publish_date <- ymd(substr(df$publish_time,start = 1,stop = 10))
+
+#format of trending_date column is different from publish_date. So it is required to modify it.
+
+df$trending_date_new <- format(as.Date(df$trending_date, "%y.%d.%m"), "20%y-%m-%d", justify = "none")
+df$trending_date_new <- as.Date(df$trending_date_new)
+df$dif_days <- df$trending_date_new-df$publish_date
+```
+
+# Exploratory Data Analysis
+
+**Does a video become trending on the first day it is published? And, approximately how long does a video stay trending?**
+
+```{r pressure1, echo=FALSE}
+df_new <- filter(df, dif_days<30)
+ggplot(df_new,aes(as.factor(dif_days),fill=as.factor(dif_days)))+geom_bar()+guides(fill="none")+labs(title="Most trending days of YouTube videos")+xlab("days btw published & trending")+ylab("# of views")
+```
+
+- It is a histogram that has right-skewed distribution and shows us most trending days of YouTube Trending Videos. 
+
+- According to our dataset, a video does not boom the day it is published.
+
+- The most traffic is observed first three to five days.  It is understood that YouTube trending videos are not trending anymore if you watch it after a month later it is published.
+
+
+**Which category has the largest number of trending video? How about the number of trending videos in each category?**
+
+```{r pressure2, echo=FALSE}
+ggplot(df,aes(category,1))+geom_bar(stat = "identity",aes(fill=category))+theme(text = element_text(size=10),
+axis.text.x = element_text(angle=90, hjust=1)) + xlab("category") + ylab("# of videos") + guides(fill=FALSE)
+```
+- It is a bar chart that shows how many trending YouTube videos exist in each category. A bar chart is one of the most common graph style to present categorical data analysis.
+- You can find the largest number of videos in the “Entertainment” category.
+- “Music” and “How to & Style” categories follow it.
+
+
+**How about views per category?**
+
+```{r pressure3, echo=FALSE}
+ggplot(df,aes(category,views))+geom_boxplot(fill = "powderblue",color = "cadetblue4")+scale_y_log10()+
+theme(text = element_text(size=10),axis.text.x = element_text(angle=90, hjust=1))+ ylab("# of views")
+```
+- Above boxplot describes the view statistics per each category. We can also compare this graps with the previous one. 
+- The largest number of views occurs in the “Music” category, although “Entertainment” category contains more videos than music category. It means, in music category, number of views per a video is bigger than entertainment category.
+- Another interesting fact in the boxplot is view level of “Shows”. Shows category has one of the highest median level of views despite has the minimum number of videos. And, also, its upper quartile range is very narrow. We can conclude that there is a group of shows that has a huge fun base.
+
+
+Is there any correlation between likes & views, likes & dislikes, comment_count & likes? 
+
+```{r pressure4, echo=FALSE}
+selected <- df[,c("views","likes","dislikes","comment_count")]
+
+selected_pair <- cor(selected, use = "pairwise.complete.obs")
+
+ggcorrplot(selected_pair, hc.order = FALSE, type = "lower", lab = TRUE, 
+lab_size = 4, colors = c("slategrey", "white", "palevioletred4"), 
+title = "Correlation between variables", 
+ggtheme = theme_bw) +
+theme(plot.title = element_text(hjust = 0.5))
+```
+- It is seen that correlation between likes & views, likes & dislikes, comment_count and the other variables in this section.  
+- We can not see any negative correlation between these four variables. It means that there is no variable decreasing while another one is increasing.
+- Views & likes have the biggest correlation coefficient(0.85) so strongest correlation. 
+- Comment_count & views correlation is not as strong as comment_count & views correlation and comment_count & likes correlation. The activities that need action such as pushing the like button or writing a comment have a stronger correlation than just viewing.
+- Likes & dislikes correlation is weaker than others.
+
+
+
+
+
+
