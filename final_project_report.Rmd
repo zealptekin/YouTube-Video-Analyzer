@@ -5,8 +5,7 @@ output:
   word_document: default
   html_document: default
 ---
-*Zehra Alptekin,*
-*2018 Fall*
+*Zehra Alptekin*
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
